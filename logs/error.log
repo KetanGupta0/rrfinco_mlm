@@ -1,0 +1,18 @@
+[2026-04-13 08:24:09] Action: 
+[2026-04-13 08:24:09] REQUEST_METHOD: GET
+[2026-04-13 08:24:26] Action: 
+[2026-04-13 08:24:26] REQUEST_METHOD: POST
+[2026-04-13 08:25:38] Action: 
+[2026-04-13 08:25:38] REQUEST_METHOD: GET
+[2026-04-13 08:25:46] Action: 
+[2026-04-13 08:25:46] REQUEST_METHOD: POST
+[2026-04-13 08:25:46] Admin manual credit action initiated
+[2026-04-13 08:40:34] Admin delete transaction | Details: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'id' in 'where clause'
+[2026-04-13 08:56:46] Password changed | Details: User 4 (admin) changed password
+[2026-04-13 09:03:48] Token validation failed | Details: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'current_time FROM users WHERE reset_token = ?' at line 1
+[2026-04-13 09:04:01] Token validation debug | Details: Token exists but expired. Expires: 2026-04-13 10:04:01, Current: 2026-04-13 12:34:01
+[2026-04-13 09:04:39] Token validation debug | Details: Token not found in database
+[2026-04-13 09:09:22] Password Reset Email | Details: Password reset email would be sent to: candyluwolf@gmail.com
+Reset Link: http://localhost/bachat-pay-mlm/reset-password.php?token=c36abd717ad34f9b3e1346edd1b7265db1643779f8daa05d4cfaf1fac88aed82
+
+[2026-04-13 09:09:22] Password reset requested | Details: User: candyluwolf (candyluwolf@gmail.com)
