@@ -171,9 +171,9 @@ $currentPage = 'wallet';
                     <tbody class="divide-y divide-gray-200">
                         <?php foreach ($transactions as $txn): 
                             // Force type to string to prevent null deprecation errors
-                            $type = $txn['type'] ?? ''; 
-                            $status = $txn['status'] ?? '';
-                            $isDebit = strpos($type, 'withdrawal') !== false;
+                            $type = $txn['transaction_type'] ?? '';
+                            $status = $txn['status'] ?? 'completed';
+                            $isDebit = strpos($type, 'withdrawal') !== false || strpos($type, 'debit') !== false;
                             
                             $statusColor = $status === 'credited' ? 'bg-green-100 text-green-800' : 
                                         ($status === 'debited' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800');
@@ -181,21 +181,49 @@ $currentPage = 'wallet';
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4"><?php echo !empty($txn['transaction_date']) ? date('M d, Y H:i', strtotime($txn['transaction_date'])) : 'N/A'; ?></td>
                             <td class="px-6 py-4 font-medium">
-                                <?php if (strpos($type, 'cashback') !== false): ?>
+                                <?php 
+                                $isJoiningBonus = in_array($type, ['joining_bonus', 'joining_bonus_added']);
+                                ?>
+                                
+                                <?php if ($isJoiningBonus): ?>
+                                    <span class="text-gray-600">
+                                        <i class="fas fa-gift mr-1"></i>
+                                        <?php echo $type === 'joining_bonus_added' ? 'Joining Bonus Assigned' : 'Joining Bonus Transfer'; ?>
+                                    </span>
+                                
+                                <?php elseif (strpos($type, 'cashback') !== false): ?>
                                     <span class="text-blue-600"><i class="fas fa-coins mr-1"></i>Cashback</span>
+                                
                                 <?php elseif (strpos($type, 'commission') !== false): ?>
                                     <span class="text-purple-600"><i class="fas fa-sitemap mr-1"></i>Commission</span>
+                                
                                 <?php elseif (strpos($type, 'bonus') !== false): ?>
                                     <span class="text-orange-600"><i class="fas fa-gift mr-1"></i>Bonus</span>
+                                
                                 <?php elseif ($type == 'withdrawal'): ?>
                                     <span class="text-red-600"><i class="fas fa-arrow-up mr-1"></i>Withdrawal</span>
+                                
                                 <?php else: ?>
                                     <span><?php echo ucfirst(str_replace('_', ' ', $type)); ?></span>
                                 <?php endif; ?>
                             </td>
                             <td class="px-6 py-4 text-gray-600"><?php echo htmlspecialchars($txn['description'] ?? 'N/A'); ?></td>
-                            <td class="px-6 py-4 text-right font-semibold <?php echo $isDebit ? 'text-red-600' : 'text-green-600'; ?>">
-                                <?php echo $isDebit ? '-' : '+'; ?><?php echo formatCurrency($txn['amount'] ?? 0); ?>
+                            <td class="px-6 py-4 text-right font-semibold 
+                            <?php 
+                            if ($isJoiningBonus) {
+                                echo 'text-gray-600';
+                            } else {
+                                echo $isDebit ? 'text-red-600' : 'text-green-600';
+                            }
+                            ?>">
+                                <?php 
+                                if ($isJoiningBonus) {
+                                    echo ''; // no +/-
+                                } else {
+                                    echo $isDebit ? '-' : '+';
+                                }
+                                ?>
+                                <?php echo formatCurrency($txn['amount'] ?? 0); ?>
                             </td>
                             <td class="px-6 py-4">
                                 <span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $statusColor; ?>">

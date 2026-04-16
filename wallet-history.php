@@ -47,10 +47,14 @@ $earned_cashback = 0;
 $earned_commission = 0;
 
 foreach ($transactions as $txn) {
-    if (strpos($txn['transaction_type'], 'deposit') !== false) {
+    if (in_array($txn['transaction_type'], ['joining_bonus', 'joining_bonus_added'])) {
+        continue;
+    }
+
+    if ($txn['transaction_type'] === 'deposit') {
         $deposited += $txn['amount'];
     } elseif (strpos($txn['transaction_type'], 'withdrawal') !== false || strpos($txn['transaction_type'], 'debit') !== false) {
-        $withdrawn += $txn['amount'];
+        $withdrawn += abs($txn['amount']);
     } elseif (strpos($txn['transaction_type'], 'cashback') !== false) {
         $earned_cashback += $txn['amount'];
     } elseif (strpos($txn['transaction_type'], 'commission') !== false) {
@@ -196,17 +200,27 @@ $transaction_types = [
                         </tr>
                         <?php else: ?>
                             <?php foreach ($transactions as $txn): 
-                                // Color coding
-                                if (strpos($txn['transaction_type'], 'cashback') !== false) {
+                                $type = $txn['transaction_type'] ?? '';
+                                $isJoiningBonus = in_array($type, ['joining_bonus', 'joining_bonus_added']);
+                                $isWithdrawal = strpos($type, 'withdrawal') !== false || strpos($type, 'debit') !== false;
+                                
+                                if ($isJoiningBonus) {
+                                    $typeColor = 'bg-gray-100 text-gray-800';
+                                    $icon = 'fas-gift';
+                                    $amountColor = 'text-gray-600';
+                                } elseif (strpos($type, 'cashback') !== false) {
                                     $typeColor = 'bg-blue-100 text-blue-800';
                                     $icon = 'fas-coins';
-                                } elseif (strpos($txn['transaction_type'], 'commission') !== false) {
+                                    $amountColor = 'text-green-600';
+                                } elseif (strpos($type, 'commission') !== false) {
                                     $typeColor = 'bg-purple-100 text-purple-800';
                                     $icon = 'fas-sitemap';
-                                } elseif (strpos($txn['transaction_type'], 'bonus') !== false) {
+                                    $amountColor = 'text-green-600';
+                                } elseif (strpos($type, 'bonus') !== false) {
                                     $typeColor = 'bg-orange-100 text-orange-800';
                                     $icon = 'fas-gift';
-                                } elseif (strpos($txn['transaction_type'], 'withdrawal') !== false || strpos($txn['transaction_type'], 'debit') !== false) {
+                                    $amountColor = 'text-green-600';
+                                } elseif ($isWithdrawal) {
                                     $typeColor = 'bg-red-100 text-red-800';
                                     $icon = 'fas-arrow-up';
                                     $amountColor = 'text-red-600';
@@ -226,14 +240,27 @@ $transaction_types = [
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $typeColor; ?>">
-                                        <i class="fas <?php echo $icon; ?> mr-1"></i><?php echo ucfirst(str_replace('_', ' ', $txn['transaction_type'])); ?>
+                                        <i class="fas <?php echo $icon; ?> mr-1"></i>
+                                        <?php 
+                                        echo match($txn['transaction_type']) {
+                                            'joining_bonus_added' => 'Joining Bonus Assigned',
+                                            'joining_bonus' => 'Joining Bonus Transfer',
+                                            default => ucfirst(str_replace('_', ' ', $txn['transaction_type']))
+                                        };
+                                        ?>
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-600">
                                     <?php echo htmlspecialchars(substr($txn['description'] ?? 'N/A', 0, 40)) . (strlen($txn['description'] ?? '') > 40 ? '...' : ''); ?>
                                 </td>
                                 <td class="px-4 py-3 font-semibold <?php echo $amountColor; ?>">
-                                    <?php echo strpos($txn['transaction_type'], 'withdrawal') !== false || strpos($txn['transaction_type'], 'debit') !== false ? '-' : '+'; ?><?php echo formatCurrency($txn['amount']); ?>
+                                   <?php 
+                                    if ($isJoiningBonus) {
+                                        echo ''; // no + or -
+                                    } else {
+                                        echo $isWithdrawal ? '-' : '+';
+                                    }
+                                    echo formatCurrency($txn['amount']); ?>
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $statusColor; ?>">

@@ -67,23 +67,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     try {
                         $pdo->beginTransaction();
 
-                        // Update withdrawal status
-                        $stmt = $pdo->prepare('UPDATE withdrawal_requests SET status = ?, completed_at = NOW(), notes = ? WHERE withdrawal_id = ?');
-                        $stmt->execute([$status, $notes, $withdrawal_id]);
-
-                        if ($status === 'completed') {
-                            // Get withdrawal details
-                            $stmt = $pdo->prepare('SELECT user_id, amount FROM withdrawal_requests WHERE withdrawal_id = ?');
-                            $stmt->execute([$withdrawal_id]);
-                            $withdrawal = $stmt->fetch();
-
-                            if ($withdrawal) {
-                                // Record transaction
-                                recordTransaction($withdrawal['user_id'], 'withdrawal', -$withdrawal['amount'],
-                                    "Withdrawal processed - {$notes}", null);
-                            }
-                        }
-
+                        // 1. Update withdrawal_requests
+                        $stmt = $pdo->prepare("
+                            UPDATE withdrawal_requests 
+                            SET status = ?, completed_at = NOW()
+                            WHERE withdrawal_id = ?
+                        ");
+                        $stmt->execute([$status, $withdrawal_id]);
+                        
+                        // 2. Update transaction
+                        $extraNote = !empty($notes) ? " - " . $notes : "";
+                        
+                        $stmt = $pdo->prepare("
+                            UPDATE transactions t
+                            JOIN withdrawal_requests w ON t.user_id = w.user_id
+                            SET 
+                                t.status = ?,
+                                t.description = CONCAT(
+                                    COALESCE(t.description, ''), 
+                                    ' | Withdrawal ', ?, 
+                                    ?
+                                )
+                            WHERE 
+                                w.withdrawal_id = ?
+                                AND t.transaction_type = 'withdrawal'
+                                AND t.amount = -w.amount
+                            ORDER BY t.transaction_date DESC
+                            LIMIT 1
+                        ");
+                        
+                        $stmt->execute([
+                            $status,
+                            ucfirst($status),
+                            $extraNote,
+                            $withdrawal_id
+                        ]);
+                        
                         $pdo->commit();
                         $message = 'Withdrawal request processed successfully';
                     } catch (PDOException $e) {
@@ -593,13 +612,18 @@ switch ($activeTab) {
                                     ₹<?php echo number_format($withdrawal['amount'], 2); ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <?php if ($withdrawal['account_holder_name']): ?>
+                                    <?php if ($withdrawal['account_holder_name'] && $withdrawal['method'] === 'bank'): ?>
                                         <div><?php echo htmlspecialchars($withdrawal['account_holder_name']); ?></div>
                                         <div><?php echo htmlspecialchars($withdrawal['bank_name']); ?></div>
                                         <div><?php echo htmlspecialchars($withdrawal['account_number']); ?></div>
                                         <div><?php echo htmlspecialchars($withdrawal['ifsc_code']); ?></div>
                                     <?php else: ?>
                                         No bank details
+                                    <?php endif; ?>
+                                    <?php if ($withdrawal['method'] === 'upi'): ?>
+                                        <div class="text-sm text-gray-500">
+                                            UPI: <?php echo htmlspecialchars($withdrawal['upi_id']); ?>
+                                        </div>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -664,12 +688,31 @@ switch ($activeTab) {
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                        <?php echo htmlspecialchars($transaction['transaction_type']); ?>
+                                    <?php 
+                                    $type = $transaction['transaction_type'];
+                                    $isJoiningBonus = in_array($type, ['joining_bonus', 'joining_bonus_added']);
+                                    
+                                    if ($isJoiningBonus) {
+                                        $badgeColor = 'bg-gray-100 text-gray-800';
+                                        $label = $type === 'joining_bonus_added' ? 'Joining Bonus Assigned' : 'Joining Bonus Transfer';
+                                    } else {
+                                        $badgeColor = 'bg-blue-100 text-blue-800';
+                                        $label = ucfirst(str_replace('_', ' ', $type));
+                                    }
+                                    ?>
+                                    
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <?php echo $badgeColor; ?>">
+                                        <?php echo htmlspecialchars($label); ?>
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium
-                                    <?php echo $transaction['amount'] >= 0 ? 'text-green-600' : 'text-red-600'; ?>">
+                                <?php 
+                                if ($isJoiningBonus) {
+                                    echo 'text-gray-600';
+                                } else {
+                                    echo $transaction['amount'] >= 0 ? 'text-green-600' : 'text-red-600';
+                                }
+                                ?>">
                                     ₹<?php echo number_format(abs($transaction['amount']), 2); ?>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-500">

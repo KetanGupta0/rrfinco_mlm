@@ -911,11 +911,67 @@ function generateUserSummary($user_id) {
             'total_earned' => $user['total_cashback_earned'] + $user['total_commission_earned'],
             'bonus_1' => $bonus1Status,
             'bonus_2' => $bonus2Status,
+            'joining_bonus' => getJoiningBonusStatus($user_id),
             'downline_stats' => getDownlineStats($user_id)
         ];
     } catch (PDOException $e) {
         logError('Summary generation failed', $e->getMessage());
         return null;
+    }
+}
+
+function getJoiningBonusStatus($user_id) {
+    global $pdo;
+
+    try {
+        $stmt = $pdo->prepare('
+            SELECT * 
+            FROM joining_bonus_tracker 
+            WHERE user_id = ? 
+            ORDER BY id DESC 
+            LIMIT 1
+        ');
+        $stmt->execute([$user_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            return [
+                'total_bonus' => 1200,
+                'released_amount' => 0,
+                'remaining_amount' => 1200,
+                'first_release_done' => 0,
+                'next_release_at' => null,
+                'last_release_at' => null,
+                'is_completed' => 0,
+                'status_label' => 'Pending'
+            ];
+        }
+
+        $total = (float)($row['total_bonus'] ?? 1200);
+        $released = (float)($row['released_amount'] ?? 0);
+
+        return [
+            'total_bonus' => $total,
+            'released_amount' => $released,
+            'remaining_amount' => max(0, $total - $released),
+            'first_release_done' => (int)($row['first_release_done'] ?? 0),
+            'next_release_at' => $row['next_release_at'] ?? null,
+            'last_release_at' => $row['last_release_at'] ?? null,
+            'is_completed' => (int)($row['is_completed'] ?? 0),
+            'status_label' => ((int)($row['is_completed'] ?? 0) === 1) ? 'Completed' : 'Pending'
+        ];
+    } catch (PDOException $e) {
+        logError('Joining bonus status failed', $e->getMessage());
+        return [
+            'total_bonus' => 1200,
+            'released_amount' => 0,
+            'remaining_amount' => 1200,
+            'first_release_done' => 0,
+            'next_release_at' => null,
+            'last_release_at' => null,
+            'is_completed' => 0,
+            'status_label' => 'Pending'
+        ];
     }
 }
 
@@ -967,6 +1023,95 @@ function recordTransaction($user_id, $transaction_type, $amount, $description = 
         return $pdo->lastInsertId();
     } catch (PDOException $e) {
         logError('Transaction recording failed', $e->getMessage());
+        return false;
+    }
+}
+
+function processJoiningBonus() {
+    global $pdo;
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT * FROM joining_bonus_tracker
+            WHERE is_completed = 0
+            AND next_release_at <= NOW()
+        ");
+        $stmt->execute();
+        $rows = $stmt->fetchAll();
+
+        foreach ($rows as $row) {
+
+            // 🧠 Remaining calculation
+            $remaining = 1200 - $row['released_amount'];
+
+            if ($remaining <= 0) {
+                continue;
+            }
+
+            // Decide amount
+            if ($row['first_release_done'] == 0) {
+                $amount = 100;
+            } else {
+                $amount = 50;
+            }
+
+            // Cap to remaining
+            if ($amount > $remaining) {
+                $amount = $remaining;
+            }
+
+            // ✅ Idempotency check using last_release_at
+            if ($row['last_release_at'] && strtotime($row['last_release_at']) >= strtotime($row['next_release_at'])) {
+                continue;
+            }
+
+            // ✅ Record ONLY transaction (no wallet update)
+            recordTransaction(
+                $row['user_id'],
+                'joining_bonus',
+                $amount,
+                'Transferred to usable wallet (Joining Bonus)'
+            );
+
+            $newReleased = $row['released_amount'] + $amount;
+
+            // ⏱ Next release logic
+            if ($row['first_release_done'] == 0) {
+                // Fetch joining date once
+                $userStmt = $pdo->prepare("SELECT registration_date FROM users WHERE user_id = ?");
+                $userStmt->execute([$row['user_id']]);
+                $user = $userStmt->fetch();
+
+                $nextRelease = date('Y-m-d H:i:s', strtotime($user['registration_date'] . ' +1 month'));
+            } else {
+                $nextRelease = date('Y-m-d H:i:s', strtotime($row['next_release_at'] . ' +1 month'));
+            }
+
+            $isCompleted = ($newReleased >= 1200) ? 1 : 0;
+
+            // 🔄 Update tracker
+            $update = $pdo->prepare("
+                UPDATE joining_bonus_tracker SET
+                    released_amount = ?,
+                    first_release_done = 1,
+                    last_release_at = NOW(),
+                    next_release_at = ?,
+                    is_completed = ?
+                WHERE id = ?
+            ");
+
+            $update->execute([
+                $newReleased,
+                $nextRelease,
+                $isCompleted,
+                $row['id']
+            ]);
+        }
+
+        return true;
+
+    } catch (PDOException $e) {
+        logError('Joining bonus processing failed', $e->getMessage());
         return false;
     }
 }

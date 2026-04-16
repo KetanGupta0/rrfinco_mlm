@@ -27,30 +27,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_payout'])) {
         $error = 'Invalid request';
     } else {
         $amount = (float)$_POST['amount'] ?? 0;
-        $bank_account_id = (int)$_POST['bank_account_id'] ?? 0;
+        $method = $_POST['withdrawal_method'] ?? 'bank';
+
+        $bank_account_id = null;
+        $upi_id = null;
+        
+        if ($method === 'bank') {
+            $bank_account_id = (int)($_POST['bank_account_id'] ?? 0);
+        
+            if ($bank_account_id === 0) {
+                $error = 'Please select a bank account';
+            }
+        
+        } elseif ($method === 'upi') {
+            $upi_id = trim($_POST['upi_id'] ?? '');
+        
+            if (empty($upi_id)) {
+                $error = 'Please enter UPI ID';
+            } elseif (!preg_match('/^[\w.\-]{2,256}@[a-zA-Z]{2,64}$/', $upi_id)) {
+                $error = 'Invalid UPI ID format';
+            }
+        }
         
         if ($amount < 1000) {
             $error = 'Minimum withdrawal amount is ₹1,000';
         } elseif ($amount > $user['wallet_balance']) {
             $error = 'Insufficient wallet balance';
-        } elseif ($bank_account_id === 0) {
+        } elseif ($method === 'bank' && empty($bank_account_id)) {
             $error = 'Please select a bank account';
+        } elseif ($method === 'upi' && empty($upi_id)) {
+            $error = 'Please enter UPI ID';
         } else {
             try {
                 $pdo->beginTransaction();
                 
                 // Create withdrawal request
                 $stmt = $pdo->prepare('
-                    INSERT INTO withdrawal_requests (user_id, amount, bank_account_id, status, requested_at)
-                    VALUES (?, ?, ?, "pending", NOW())
+                    INSERT INTO withdrawal_requests 
+                    (user_id, amount, bank_account_id, upi_id, method, status, requested_at)
+                    VALUES (?, ?, ?, ?, ?, "pending", NOW())
                 ');
-                $stmt->execute([$user['user_id'], $amount, $bank_account_id]);
+                // Ensure only one method is used
+                if ($method === 'upi') {
+                    $bank_account_id = null;
+                } else {
+                    $upi_id = null;
+                }
+                $stmt->execute([
+                    $user['user_id'],
+                    $amount,
+                    $bank_account_id,
+                    $upi_id,
+                    $method
+                ]);
                 
                 // Deduct from wallet
                 updateWalletBalance($user['user_id'], $amount, 'sub');
                 
                 // Record transaction
-                recordTransaction($user['user_id'], 'withdrawal', $amount, 'Bank withdrawal request');
+                $desc = $method === 'upi' 
+                    ? "UPI withdrawal request ({$upi_id})" 
+                    : "Bank withdrawal request";
+                
+                recordTransaction($user['user_id'], 'withdrawal', -$amount, $desc);
                 
                 $pdo->commit();
                 $success = 'Withdrawal request submitted successfully. It will be processed within 2-3 business days.';
@@ -59,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_payout'])) {
                 $user = getCurrentUser();
             } catch (Exception $e) {
                 $pdo->rollBack();
+                logError('Withdrawal Error', $e->getMessage());
                 $error = 'Error processing withdrawal. Please try again.';
             }
         }
@@ -128,35 +168,59 @@ $recent_payouts = $stmt->fetchAll();
                             </div>
                             <p class="text-xs text-gray-500 mt-2">Min: ₹1,000 | Available: <?php echo formatCurrency($user['wallet_balance']); ?></p>
                         </div>
+                        
+                        <!-- Withdrawal Method -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-semibold text-gray-700 mb-3">Withdrawal Method</label>
+                        
+                            <label class="flex items-center mb-2">
+                                <input type="radio" name="withdrawal_method" value="bank" checked class="mr-2">
+                                Bank Account
+                            </label>
+                        
+                            <label class="flex items-center">
+                                <input type="radio" name="withdrawal_method" value="upi" class="mr-2">
+                                UPI ID
+                            </label>
+                        </div>
 
                         <!-- Bank Account Selection -->
-                        <div class="mb-6">
-                            <label class="block text-sm font-semibold text-gray-700 mb-3">Bank Account</label>
-                            <?php if (empty($bank_accounts)): ?>
-                            <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
-                                <p class="text-yellow-700 text-sm mb-3">No bank account added yet</p>
-                                <a href="settings.php?tab=bank-accounts" class="text-blue-600 hover:text-blue-800 font-semibold">
-                                    <i class="fas fa-plus mr-1"></i>Add Bank Account
-                                </a>
+                        <div id="bankSection">
+                            <div class="mb-6">
+                                <label class="block text-sm font-semibold text-gray-700 mb-3">Bank Account</label>
+                                <?php if (empty($bank_accounts)): ?>
+                                <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-center">
+                                    <p class="text-yellow-700 text-sm mb-3">No bank account added yet</p>
+                                    <a href="settings.php?tab=bank-accounts" class="text-blue-600 hover:text-blue-800 font-semibold">
+                                        <i class="fas fa-plus mr-1"></i>Add Bank Account
+                                    </a>
+                                </div>
+                                <?php else: ?>
+                                <div class="space-y-3">
+                                    <?php foreach ($bank_accounts as $acc): ?>
+                                    <label class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+                                        <input type="radio" name="bank_account_id" value="<?php echo $acc['bank_account_id']; ?>" 
+                                            <?php echo $acc['is_primary'] ? 'checked' : ''; ?> class="w-4 h-4 text-blue-600">
+                                        <div class="ml-4 flex-1">
+                                            <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($acc['account_holder_name']); ?></p>
+                                            <p class="text-sm text-gray-600"><?php echo htmlspecialchars($acc['bank_name']); ?></p>
+                                            <p class="text-sm text-gray-500">****<?php echo substr($acc['account_number'], -4); ?></p>
+                                        </div>
+                                        <?php if ($acc['is_primary']): ?>
+                                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-semibold">Primary</span>
+                                        <?php endif; ?>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
-                            <?php else: ?>
-                            <div class="space-y-3">
-                                <?php foreach ($bank_accounts as $acc): ?>
-                                <label class="flex items-center p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
-                                    <input type="radio" name="bank_account_id" value="<?php echo $acc['bank_account_id']; ?>" 
-                                        <?php echo $acc['is_primary'] ? 'checked' : ''; ?> required class="w-4 h-4 text-blue-600">
-                                    <div class="ml-4 flex-1">
-                                        <p class="font-semibold text-gray-900"><?php echo htmlspecialchars($acc['account_holder_name']); ?></p>
-                                        <p class="text-sm text-gray-600"><?php echo htmlspecialchars($acc['bank_name']); ?></p>
-                                        <p class="text-sm text-gray-500">****<?php echo substr($acc['account_number'], -4); ?></p>
-                                    </div>
-                                    <?php if ($acc['is_primary']): ?>
-                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-semibold">Primary</span>
-                                    <?php endif; ?>
-                                </label>
-                                <?php endforeach; ?>
-                            </div>
-                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- UPI Selection -->
+                        <div id="upiSection" class="mb-6 hidden">
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">UPI ID</label>
+                            <input type="text" name="upi_id" placeholder="example@upi"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg">
                         </div>
 
                         <!-- Terms -->
@@ -170,7 +234,7 @@ $recent_payouts = $stmt->fetchAll();
                         </div>
 
                         <!-- Submit Button -->
-                        <?php if (!empty($bank_accounts)): ?>
+                        <?php if (!empty($bank_accounts) || true): ?>
                         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition">
                             <i class="fas fa-arrow-up mr-2"></i>Request Withdrawal
                         </button>
@@ -241,5 +305,18 @@ $recent_payouts = $stmt->fetchAll();
             </div>
         </div>
     </div>
+    <script>
+    document.querySelectorAll('input[name="withdrawal_method"]').forEach(el => {
+        el.addEventListener('change', function() {
+            if (this.value === 'upi') {
+                document.getElementById('upiSection').classList.remove('hidden');
+                document.getElementById('bankSection').classList.add('hidden');
+            } else {
+                document.getElementById('bankSection').classList.remove('hidden');
+                document.getElementById('upiSection').classList.add('hidden');
+            }
+        });
+    });
+    </script>
 </body>
 </html>

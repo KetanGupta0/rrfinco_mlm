@@ -158,6 +158,7 @@ CREATE TABLE IF NOT EXISTS user_bank_accounts (
     bank_name VARCHAR(100) NOT NULL,
     account_number VARCHAR(20) NOT NULL,
     ifsc_code VARCHAR(20) NOT NULL,
+    upi_id VARCHAR(100),
     is_primary TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME ON UPDATE CURRENT_TIMESTAMP,
@@ -310,6 +311,23 @@ CREATE TABLE IF NOT EXISTS support_replies (
     INDEX idx_ticket (ticket_id),
     INDEX idx_date (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE joining_bonus_tracker (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+
+    total_bonus DECIMAL(10,2) DEFAULT 1200,
+    released_amount DECIMAL(10,2) DEFAULT 0,
+
+    first_release_done TINYINT(1) DEFAULT 0,
+
+    next_release_at DATETIME NOT NULL,
+    last_release_at DATETIME NULL,
+
+    is_completed TINYINT(1) DEFAULT 0,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 
 -- ================================================================
 -- Seed data for investment plans

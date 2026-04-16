@@ -159,7 +159,37 @@ $withdrawalRequests = $stmt->fetchAll() ?? [];
                     </div>
                 </div>
             </div>
+            
+            <!-- Joining Bonus Card -->
+            <div class="bg-white rounded-lg shadow p-6 dashboard-card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Joining Bonus</p>
+                        <div class="stat-number mt-2">
+                            <?php echo formatCurrency($summary['joining_bonus']['remaining_amount'] ?? 0); ?>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center text-yellow-600 text-2xl">
+                        <i class="fas fa-gift"></i>
+                    </div>
+                </div>
+    
+                <div class="mt-3 text-xs text-gray-500 space-y-1">
+                    <p>Released: <span class="font-semibold"><?php echo formatCurrency($summary['joining_bonus']['released_amount'] ?? 0); ?></span></p>
+                    <p>
+                        Next Release:
+                        <span class="font-semibold">
+                            <?php
+                            echo !empty($summary['joining_bonus']['next_release_at'])
+                                ? date('d M Y h:i:s A', strtotime($summary['joining_bonus']['next_release_at']))
+                                : 'Not scheduled yet';
+                            ?>
+                        </span>
+                    </p>
+                </div>
+            </div>
         </div>
+
 
         <!-- BONUS STATUS CARDS - 2 Column Responsive -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

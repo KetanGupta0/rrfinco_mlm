@@ -78,6 +78,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $stmt->execute([$username, $email, $hashedPassword, $first_name, $last_name, $phone, $sponsor_id]);
                             
                             $newUserId = $pdo->lastInsertId();
+                            recordTransaction(
+                                $newUserId,
+                                'joining_bonus',
+                                1200,
+                                'Joining bonus assigned (₹1200)'
+                            );
+                            $joiningTime = date('Y-m-d H:i:s');
+
+                            $nextRelease = date('Y-m-d H:i:s', strtotime($joiningTime . ' +24 hours'));
+
+                            $stmt = $pdo->prepare("
+                                INSERT INTO joining_bonus_tracker (user_id, next_release_at)
+                                VALUES (?, ?)
+                            ");
+
+                            $stmt->execute([$newUserId, $nextRelease]);
                             createReferralRecordsForUser($newUserId, $sponsor_id);
                             
                             $success = 'Registration successful! Please <a href="index.php" class="font-bold underline">login here</a> to continue.';

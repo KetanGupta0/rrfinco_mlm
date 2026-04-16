@@ -16,3 +16,12 @@
 Reset Link: http://localhost/bachat-pay-mlm/reset-password.php?token=c36abd717ad34f9b3e1346edd1b7265db1643779f8daa05d4cfaf1fac88aed82
 
 [2026-04-13 09:09:22] Password reset requested | Details: User: candyluwolf (candyluwolf@gmail.com)
+[2026-04-13 14:55:49] Joining bonus processing failed | Details: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'created_at' in 'SELECT'
+[2026-04-13 16:42:19] Admin process withdrawal | Details: SQLSTATE[HY000]: General error: 1267 Illegal mix of collations (utf8mb4_general_ci,COERCIBLE) and (utf8mb4_unicode_ci,COERCIBLE) for operation '<>'
+[2026-04-13 16:47:01] Admin process withdrawal | Details: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'processed_at' in 'SET'
+[2026-04-13 17:31:40] Withdrawal Error | Details: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'upi_id' in 'INSERT INTO'
+[2026-04-13 17:32:01] Withdrawal Error | Details: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'upi_id' in 'INSERT INTO'
+[2026-04-15 10:48:12] Transaction recording failed | Details: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`u362349964_bachat_pay_mlm`.`transactions`, CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE)
+[2026-04-15 10:48:12] Transaction recording failed | Details: SQLSTATE[23000]: Integrity constraint violation: 1452 Cannot add or update a child row: a foreign key constraint fails (`u362349964_bachat_pay_mlm`.`transactions`, CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE)
+[2026-04-16 02:03:49] Admin Manual Cron | Details: Daily cashback processed for 1 users by admin admin
+[2026-04-16 02:03:55] Admin Manual Cron | Details: Daily cashback processed for 1 users by admin admin

@@ -176,9 +176,18 @@ $statuses = ['all' => 'All Status', 'pending' => 'Pending', 'completed' => 'Comp
                                 </td>
                                 <td class="px-4 py-3 font-bold text-red-600">
                                     -<?php echo formatCurrency($wd['amount']); ?>
+                                    <div class="text-xs text-gray-500">
+                                        <?php echo strtoupper($wd['method']); ?>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-600">
-                                    <i class="fas fa-building mr-2 text-blue-600"></i>Bank Account
+                                    <?php if ($wd['method'] === 'upi'): ?>
+                                        <i class="fas fa-mobile-alt mr-2 text-purple-600"></i>
+                                        <?php echo htmlspecialchars($wd['upi_id'] ?? 'UPI'); ?>
+                                    <?php else: ?>
+                                        <i class="fas fa-building mr-2 text-blue-600"></i>
+                                        Bank Account
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $statusColor; ?>">

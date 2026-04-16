@@ -34,7 +34,7 @@ define('SESSION_TIMEOUT', 3600); // 1 hour
 // App constants
 define('APP_NAME', 'BachatPay MLM');
 define('APP_VERSION', '1.0.0');
-define('BASE_URL', 'http://localhost/bachat-pay-mlm/');
+define('BASE_URL', 'http://localhost/bachat-pay-mlm/'); // Change to your actual base URL
 
 // Security constants
 define('MIN_PASSWORD_LENGTH', 6);

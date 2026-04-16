@@ -95,7 +95,7 @@ if (!function_exists('buildNavbar')) {
             <!-- <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
                 BP
             </div> -->
-            <img src="../bachat-pay-mlm/assets/images/logos/logo.png" alt="Bachat Pay Logo" class="w-12 h-12">
+            <img src="../assets/images/logos/logo.png" alt="Bachat Pay Logo" class="w-12 h-12">
             <div>
                 <h1 class="text-lg font-bold text-gray-900">BachatPay</h1>
                 <p class="text-xs text-gray-500">MLM Platform</p>

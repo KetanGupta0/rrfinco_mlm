@@ -60,11 +60,17 @@ $total_in = 0;
 $total_out = 0;
 
 foreach ($transactions as $txn) {
-    if (strpos($txn['transaction_type'], 'deposit') !== false || 
-        strpos($txn['transaction_type'], 'cashback') !== false ||
-        strpos($txn['transaction_type'], 'commission') !== false ||
-        strpos($txn['transaction_type'], 'bonus') !== false ||
-        strpos($txn['transaction_type'], 'credit') !== false) {
+    if(in_array($txn['transaction_type'], ['joining_bonus', 'joining_bonus_added'])){
+        continue;
+    }
+    if (in_array($txn['transaction_type'], [
+        'deposit',
+        'daily_cashback',
+        'level_commission',
+        'bonus_1',
+        'bonus_2',
+        'manual_credit'
+    ])) {
         $total_in += $txn['amount'];
     } else {
         $total_out += $txn['amount'];
@@ -206,54 +212,46 @@ foreach ($transactions as $txn) {
                         </tr>
                         <?php else: ?>
                             <?php foreach ($transactions as $txn): 
-                                // Determine icon and color
-                                if (strpos($txn['transaction_type'], 'deposit') !== false) {
-                                    $icon = 'fas-arrow-down';
-$typeColor = 'bg-green-100 text-green-800';
-                                    $amountColor = 'text-green-600';
-                                    $prefix = '+';
-                                } elseif (strpos($txn['transaction_type'], 'cashback') !== false) {
-                                    $icon = 'fas-coins';
-                                    $typeColor = 'bg-blue-100 text-blue-800';
-                                    $amountColor = 'text-blue-600';
-                                    $prefix = '+';
-                                } elseif (strpos($txn['transaction_type'], 'commission') !== false) {
-                                    $icon = 'fas-sitemap';
-                                    $typeColor = 'bg-purple-100 text-purple-800';
-                                    $amountColor = 'text-purple-600';
-                                    $prefix = '+';
-                                } elseif (strpos($txn['transaction_type'], 'bonus') !== false) {
+                                $type = $txn['transaction_type'] ?? '';
+                            
+                                // 👇 Special case for joining bonus
+                                $isJoiningBonus = in_array($txn['transaction_type'], ['joining_bonus', 'joining_bonus_added']);
+                            
+                                $isWithdrawal = strpos($type, 'withdrawal') !== false || strpos($type, 'debit') !== false;
+                            
+                                if ($isJoiningBonus) {
+                                    $typeColor = 'bg-gray-100 text-gray-800';
                                     $icon = 'fas-gift';
+                                } elseif (strpos($type, 'cashback') !== false) {
+                                    $typeColor = 'bg-blue-100 text-blue-800';
+                                    $icon = 'fas-coins';
+                                } elseif (strpos($type, 'commission') !== false) {
+                                    $typeColor = 'bg-purple-100 text-purple-800';
+                                    $icon = 'fas-sitemap';
+                                } elseif (strpos($type, 'bonus') !== false) {
                                     $typeColor = 'bg-orange-100 text-orange-800';
-                                    $amountColor = 'text-orange-600';
-                                    $prefix = '+';
-                                } else {
-                                    $icon = 'fas-arrow-up';
+                                    $icon = 'fas-gift';
+                                } elseif ($isWithdrawal) {
                                     $typeColor = 'bg-red-100 text-red-800';
-                                    $amountColor = 'text-red-600';
-                                    $prefix = '-';
+                                    $icon = 'fas-arrow-up';
+                                } else {
+                                    $typeColor = 'bg-green-100 text-green-800';
+                                    $icon = 'fas-arrow-down';
                                 }
-                                
-                                $statusColor = $txn['status'] === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
                             ?>
-                            <tr class="border-b hover:bg-gray-50 transition">
-                                <td class="px-4 py-3">
-                                    <span class="font-semibold text-gray-900"><?php echo date('M d, Y', strtotime($txn['transaction_date'])); ?></span><br>
-                                    <span class="text-xs text-gray-500"><?php echo date('H:i', strtotime($txn['transaction_date'])); ?></span>
-                                </td>
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 text-sm"><?php echo date('M d, Y', strtotime($txn['transaction_date'])); ?></td>
                                 <td class="px-4 py-3">
                                     <span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $typeColor; ?>">
-                                        <i class="fas <?php echo $icon; ?> mr-1"></i><?php echo ucfirst(str_replace('_', ' ', $txn['transaction_type'])); ?>
+                                        <i class="fas <?php echo $icon; ?> mr-1"></i><?php echo ucfirst(str_replace('_', ' ', $type)); ?>
                                     </span>
                                 </td>
-                                <td class="px-4 py-3 text-sm">
-                                    <?php echo htmlspecialchars(substr($txn['description'] ?? 'N/A', 0, 50)) . (strlen($txn['description'] ?? '') > 50 ? '...' : ''); ?>
-                                </td>
-                                <td class="px-4 py-3 font-bold text-right <?php echo $amountColor; ?>">
-                                    <?php echo $prefix; ?><?php echo formatCurrency($txn['amount']); ?>
+                                <td class="px-4 py-3 text-sm hidden sm:table-cell text-gray-600"><?php echo htmlspecialchars(substr($txn['description'] ?? '', 0, 50)); ?></td>
+                                <td class="px-4 py-3 text-right font-semibold text-sm <?php if ($isJoiningBonus) {echo 'text-gray-600';} else {echo $isWithdrawal ? 'text-red-600' : 'text-green-600';}?>">
+                                    <?php if ($isJoiningBonus) {echo '';} else {echo $isWithdrawal ? '-' : '+';} echo formatCurrency($txn['amount']);?>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <span class="px-3 py-1 rounded-full text-xs font-semibold <?php echo $statusColor; ?>">
+                                    <span class="px-2 py-1 rounded text-xs font-semibold <?php echo $txn['status'] === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'; ?>">
                                         <?php echo ucfirst($txn['status']); ?>
                                     </span>
                                 </td>
