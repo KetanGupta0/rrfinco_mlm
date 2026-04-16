@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/common.php';
 
 // Require admin access
 requireAdmin();
@@ -133,57 +134,57 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cron Job Management - BachatPay Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gray-100">
+<body>
     <!-- Admin Navigation -->
     <?php require_once __DIR__ . '/navbar.php'; ?>
 
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="mb-6">
-            <h1 class="text-3xl font-bold text-gray-900">Cron Job Management</h1>
-            <p class="text-gray-600">Manually trigger automated processes and monitor system status</p>
+    <main class="admin-content">
+        <div class="admin-page-header">
+            <div class="admin-page-title">
+                <h2>Cron Job Management</h2>
+                <p>Manually trigger automated processes and monitor system status</p>
+            </div>
+            <div class="page-tools screen-only">
+                <button type="button" class="btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>
+            </div>
         </div>
 
         <!-- Messages -->
         <?php if ($message): ?>
-            <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
+            <div class="alert alert-success">
                 <?php echo htmlspecialchars($message); ?>
             </div>
         <?php endif; ?>
 
         <?php if ($error): ?>
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+            <div class="alert alert-error">
                 <?php echo htmlspecialchars($error); ?>
             </div>
         <?php endif; ?>
 
         <!-- System Status -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">System Status</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-gray-50 p-4 rounded">
-                    <h3 class="font-medium text-gray-900">Last Cashback Processing</h3>
-                    <p class="text-2xl font-bold text-blue-600"><?php echo $cronStats['last_cashback_date']; ?></p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded">
-                    <h3 class="font-medium text-gray-900">Today's Cashback Records</h3>
-                    <p class="text-2xl font-bold text-green-600"><?php echo number_format($cronStats['today_cashback_count']); ?></p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded">
-                    <h3 class="font-medium text-gray-900">Pending Bonus 1</h3>
-                    <p class="text-2xl font-bold text-yellow-600"><?php echo number_format($cronStats['pending_bonus1']); ?></p>
-                </div>
-                <div class="bg-gray-50 p-4 rounded">
-                    <h3 class="font-medium text-gray-900">Pending Bonus 2</h3>
-                    <p class="text-2xl font-bold text-purple-600"><?php echo number_format($cronStats['pending_bonus2']); ?></p>
-                </div>
-            </div>
-        </div>
+        <section class="stats-grid">
+            <article class="stat-card"><span class="label">Last Cashback Processing</span><span class="value"><?php echo htmlspecialchars((string) $cronStats['last_cashback_date']); ?></span></article>
+            <article class="stat-card"><span class="label">Today's Cashback Records</span><span class="value"><?php echo number_format($cronStats['today_cashback_count']); ?></span></article>
+            <article class="stat-card"><span class="label">Pending Bonus 1</span><span class="value"><?php echo number_format($cronStats['pending_bonus1']); ?></span></article>
+            <article class="stat-card"><span class="label">Pending Bonus 2</span><span class="value"><?php echo number_format($cronStats['pending_bonus2']); ?></span></article>
+        </section>
 
         <!-- Manual Cron Jobs -->
-        <div class="bg-white shadow rounded-lg p-6 mb-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">Manual Process Triggers</h2>
-            <div class="space-y-4">
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h3>Manual Process Triggers</h3>
+                    <p>Run key jobs without leaving the admin panel.</p>
+                </div>
+            </div>
+            <div class="kpi-list">
                 <!-- Daily Cashback Processing -->
                 <div class="border border-gray-200 rounded p-4">
                     <div class="flex justify-between items-center">
@@ -270,8 +271,13 @@ try {
         </div>
 
         <!-- Cron Job Information -->
-        <div class="bg-white shadow rounded-lg p-6">
-            <h2 class="text-xl font-semibold text-gray-900 mb-4">Automated Processes</h2>
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h3>Automated Processes</h3>
+                    <p>Suggested schedules for production automation.</p>
+                </div>
+            </div>
             <div class="space-y-4">
                 <div class="border-l-4 border-blue-500 pl-4">
                     <h3 class="font-medium text-gray-900">Daily Cashback (Recommended: Daily at 00:01)</h3>
@@ -292,6 +298,6 @@ try {
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 </body>
 </html>
